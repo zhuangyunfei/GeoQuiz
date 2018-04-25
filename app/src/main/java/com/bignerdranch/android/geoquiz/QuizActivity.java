@@ -1,5 +1,9 @@
 package com.bignerdranch.android.geoquiz;
 
+import android.app.Activity;
+import android.content.Context;
+import android.content.Intent;
+import android.print.PrinterId;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -13,10 +17,12 @@ public class QuizActivity extends AppCompatActivity {
     private static final String TAG = "QuizActivity";
     //增添常量保存
     private static final String KEY_INDEX = "index";
+    private static final int QUESTION_CODE_CHEAT = 0;
     //声明变量
     private Button mTrueButton;
     private Button mFalseButton;
     private Button mNextButton;
+    private Button mCheatButton;
     private TextView mQuestionTextView;
     //声明数组
     private Question[] mQuestionBank = new Question[]{
@@ -70,10 +76,23 @@ public class QuizActivity extends AppCompatActivity {
                 //递增索引，并更新文本内容
                 mCurrentIndex = (mCurrentIndex+1)%mQuestionBank.length;
                 Log.d("QuizActivity.this","索引值为：" + mCurrentIndex);
+                mIsCheat = false;
                 updateQuestion();
             }
         });
-        updateQuestion();
+        //作弊
+        mCheatButton = findViewById(R.id.cheat_button);
+        mCheatButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                boolean answerIsTrue = mQuestionBank[mCurrentIndex].isAnswerTrue();
+                Intent intent = CheatActivity.newIntent(QuizActivity.this,answerIsTrue);
+                startActivityForResult(intent,QUESTION_CODE_CHEAT);
+                Toast toast = Toast.makeText(QuizActivity.this,"启动成功",Toast.LENGTH_SHORT);
+                toast.setGravity(Gravity.BOTTOM,0,0);
+                toast.show();
+            }
+        });
     }
 
     
@@ -130,12 +149,16 @@ public class QuizActivity extends AppCompatActivity {
     private void checkAnswer(boolean userPressedTrue){
         boolean answerIsTrue = mQuestionBank[mCurrentIndex].isAnswerTrue();
         int messageId = 0;
-        if(userPressedTrue == answerIsTrue){
-            messageId = R.string.correct_toast;
+        if (mIsCheat){
+            messageId = R.string.judgment_toast;
         }else {
-            messageId = R.string.incorrect_toact;
+            if(userPressedTrue == answerIsTrue){
+                messageId = R.string.correct_toast;
+            }else {
+                messageId = R.string.incorrect_toact;
+            }
+            Toast.makeText(this,messageId,Toast.LENGTH_SHORT).show();
         }
-        Toast.makeText(this,messageId,Toast.LENGTH_SHORT).show();
     }
 
     @Override
@@ -143,5 +166,19 @@ public class QuizActivity extends AppCompatActivity {
         super.onSaveInstanceState(saveInstanceState);
         Log.i(TAG, "onSaveInstanceState: called");
         saveInstanceState.putInt(KEY_INDEX,mCurrentIndex);
+    }
+private boolean mIsCheat;
+    //检查结果是否在正确
+    @Override
+    protected void onActivityResult(int requestCode,int resultCode,Intent data){
+        if (requestCode != Activity.RESULT_OK){
+            return;
+        }
+        if (requestCode == Activity.RESULT_CANCELED){
+            if (data == null){
+                return;
+            }
+            mIsCheat = CheatActivity.wasAnswerShown(data);
+        }
     }
 }
